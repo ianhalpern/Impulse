@@ -8,45 +8,52 @@ if gtk.pygtk_version < ( 2, 9, 0 ):
 	print "PyGtk 2.9.0 or later required"
 	raise SystemExit
 
+SCREEN_WIDTH = 1440
+SCREEN_HEIGHT = 900
+
 CHUNK = 1024    # audio stream buffer size
 
-supports_alpha = False
 keep_processing = True
 
-sample = ""
+audio_sample = ""
+pixmap = None
 
 # This is called when we need to draw the windows contents
 def expose ( widget, event=None ):
-	global supports_alpha, sample
-
+	global pixmap
 	#print "expose"
+	widget.window.draw_drawable( widget.window.new_gc( ), pixmap,
+        # Only copy the area that was exposed.
+        event.area.x, event.area.y,
+        event.area.x, event.area.y,
+        event.area.width, event.area.height )
+	return True
 
-	if not sample:
-		sample = ""
+
+def draw ( ):
+	global audio_sample, pixmap
+
+	if not audio_sample:
+		audio_sample = ""
 
 		#for x in range( CHUNK ):
-		#	sample += chr( int( random.random( ) * 256 ) )
+		#	audio_sample += chr( int( random.random( ) * 256 ) )
 
-	sample = sample.ljust( CHUNK, chr( 0x00 ) )
+	my_audio_sample = audio_sample.ljust( CHUNK, chr( 0x00 ) )
 
 
-	cr = widget.window.cairo_create( )
+	width, height = pixmap.get_size( )
 
-	if supports_alpha == True:
-		cr.set_source_rgba( 1.0, 1.0, 1.0, 0.0 ) # Transparent
-	else:
-		cr.set_source_rgb( 1.0, 1.0, 1.0 ) # Opaque white
+	cst = cairo.ImageSurface( cairo.FORMAT_ARGB32, width, height )
 
-	# Draw the background
-	cr.set_operator( cairo.OPERATOR_SOURCE )
-	cr.paint( )
+	cr = cairo.Context( cst )
 
-	# Draw a circle
-	(width, height) = widget.get_size( )
-	cr.set_source_rgba( 0.0, 0.6, 1.0, 0.9 )
+	# start drawing spectrum
+
+	cr.set_source_rgba( 0.0, 0.6, 1.0, 0.8 )
 
 	for i in range( 0, CHUNK, CHUNK / 32 ):
-		bar_freq = struct.unpack( 'i', sample[ i:i+4 ] )[ 0 ]
+		bar_freq = struct.unpack( 'i', my_audio_sample[ i:i+4 ] )[ 0 ]
 
 		#normalize
 		bar_freq_norm = bar_freq / float( 0xffffff7f )
@@ -65,101 +72,107 @@ def expose ( widget, event=None ):
 			bar_heigth
 		)
 
-	cr.arc( 0, 0, 1, 0, 2.0 * 3.14 )
-
 	cr.fill( )
 	cr.stroke( )
 
-	#print struct.unpack( '4i', sample[:16] )
+	# end drawing
+
+	cr_pixmap = pixmap.cairo_create( )
+
+	cr_pixmap.set_source_rgba( 1.0, 1.0, 1.0, 0.0 ) # Transparent
+	# Draw the background
+	cr_pixmap.set_operator( cairo.OPERATOR_SOURCE )
+	cr_pixmap.paint( )
+
+	cr_pixmap.set_source_surface( cst, 0, 0 )
+	cr_pixmap.paint( )
+
 	return False
 
-def screen_changed ( widget, old_screen=None ):
-
-	global supports_alpha
+def screenChanged ( widget, old_screen=None ):
 
 	# To check if the display supports alpha channels, get the colormap
 	screen = widget.get_screen( )
 	colormap = screen.get_rgba_colormap( )
-	if colormap == None:
-		colormap = screen.get_rgb_colormap( )
-		supports_alpha = False
-	else:
-		supports_alpha = True
-
 	# Now we have a colormap appropriate for the screen, use it
 	widget.set_colormap( colormap )
 
 	return False
 
-def discontinue_processing(signl, frme):
+def timerExecFrame ( win ):
+	global pixmap
+	draw( )
+	width, height = pixmap.get_size( )
+	win.queue_draw_area( 0, 0, width, height )
+	win.window.process_updates( True )
+
+def discontinueProcessing (signl, frme):
     global keep_processing
     keep_processing = False
     return 0
 
 def captureAudio ( win ):
-	global keep_processing, sample
+	global keep_processing, audio_sample
 
 	audio_stream = os.popen3( "esdmon" )
 
-	triggerRedraw( win )
 	while keep_processing:
-		sample = audio_stream[ 1 ].read( CHUNK )
-		#win.window.redraw_canvas( )
-		triggerRedraw( win )
-		#expose( win, sample )
+		audio_sample = audio_stream[ 1 ].read( CHUNK )
 
 	for stream in audio_stream:
 		stream.close( )
 
 	print "\nHelper Thread Die..."
 
-def triggerRedraw ( win ):
-	width, height = win.get_size( )
-	win.queue_draw_area(0, 0, width, height)
-	win.window.process_updates( True )
+#def triggerRedraw ( win ):
+#	width, height = win.get_size( )
+#	win.queue_draw_area(0, 0, width, height)
+#	win.window.process_updates( True )
+
 
 def main(args):
-	global keep_processing
+	global keep_processing, pixmap
 
-
+	width = 544
+	height = 300
 
 	win = gtk.Window( )
 
 	win.set_title( 'Spectrumize' )
-	win.set_default_size( 544, 300 )
+	win.set_default_size( width, height )
 
-	win.connect( 'delete-event', gtk.main_quit )
-
-	# Tell GTK+ that we want to draw the windows background ourself.
-	# If we don't do this then GTK+ will clear the window to the
-	# opaque theme default color, which isn't what we want.
-	win.set_app_paintable(  True )
-	#win.unset_flags( gtk.DOUBLE_BUFFERED )
-	win.connect( 'expose-event', expose )
-	win.connect( 'screen-changed', screen_changed )
-
+	win.stick( )
+	win.set_keep_below( True )
 	win.set_decorated( False )
 	win.set_skip_taskbar_hint( True )
+	#win.set_gravity( gdk.GRAVITY_CENTER )
 
-	# toggle title bar on click - we add the mask to tell 
-	# X we are interested in this event
-	win.add_events( gdk.BUTTON_PRESS_MASK )
+	win.connect( 'delete-event', gtk.main_quit )
+	win.connect( 'expose-event', expose )
+	win.connect( 'screen-changed', screenChanged )
 
 	# initialize for the current display
-	screen_changed( win )
-
+	screenChanged( win )
 	# Run the program
 	win.show_all( )
+
+	pixmap = gdk.Pixmap( win.window, width, height, -1 )
+
+	# Tell GTK+ that we want to draw the windows background ourself.
+	win.set_app_paintable(  True )
+	win.set_double_buffered( False )
 
 	t = Thread( target=captureAudio, args=(win,) )
 	t.start( )
 
+	win.move( SCREEN_WIDTH / 2 - width / 2, SCREEN_HEIGHT / 2 - height / 2 )
 	try:
 		while keep_processing:
-			time.sleep( 1 )
+			timerExecFrame( win )
+			time.sleep( 1.0 / 30 )
 	except KeyboardInterrupt:
 		print "Error: KeyboardInterrupt Caught..."
-		discontinue_processing( )
+		discontinueProcessing( )
 
 	t.join( )
 
@@ -167,6 +180,6 @@ def main(args):
 	return True
 
 if __name__ == '__main__':
-	signal.signal( signal.SIGINT, discontinue_processing )
+	signal.signal( signal.SIGINT, discontinueProcessing )
 	sys.exit( main( sys.argv ) )
 
