@@ -1,4 +1,19 @@
 #!/usr/bin/env python
+#
+#    Copyright © 2009 Ian Halpern
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import os, sys, gtk, cairo, time, random, struct, signal
 from gtk import gdk
@@ -21,7 +36,7 @@ pixmap = None
 # This is called when we need to draw the windows contents
 def expose ( widget, event=None ):
 	global pixmap
-	#print "expose"
+
 	widget.window.draw_drawable( widget.window.new_gc( ), pixmap,
         # Only copy the area that was exposed.
         event.area.x, event.area.y,
