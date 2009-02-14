@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 #
-#    Copyright © 2009 Ian Halpern
+#+   Copyright (c) 2009 Ian Halpern
+#@   http://Spectrolet.com
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -18,6 +19,9 @@
 import os, sys, gtk, cairo, time, random, struct, signal
 from gtk import gdk
 from threading import Thread
+
+from numpy import *
+
 
 if gtk.pygtk_version < ( 2, 9, 0 ):
 	print "PyGtk 2.9.0 or later required"
@@ -48,14 +52,21 @@ def expose ( widget, event=None ):
 def draw ( ):
 	global audio_sample, pixmap
 
+	#audio_sample = ""
+
 	if not audio_sample:
 		audio_sample = ""
 
 		#for x in range( CHUNK ):
 		#	audio_sample += chr( int( random.random( ) * 256 ) )
 
-	my_audio_sample = audio_sample.ljust( CHUNK, chr( 0x00 ) )
+	audio_sample_str = audio_sample.ljust( CHUNK, chr( 0x00 ) )
 
+	audio_sample_array = array( map( ord, struct.unpack( 'c' * CHUNK, audio_sample_str ) ) )
+
+	# audio_sample_array = fft.fft( audio_sample_array )
+
+	l = len( audio_sample_array )
 
 	width, height = pixmap.get_size( )
 
@@ -67,13 +78,13 @@ def draw ( ):
 
 	cr.set_source_rgba( 0.0, 0.6, 1.0, 0.8 )
 
-	for i in range( 0, CHUNK, CHUNK / 32 ):
-		bar_freq = struct.unpack( 'i', my_audio_sample[ i:i+4 ] )[ 0 ]
+	for i in range( 0, l, l / 32 ):
+		bar_freq = struct.unpack( 'i', ''.join( map( chr, audio_sample_array[ i : i + 4 ] ) ) )[ 0 ]
+
+		#bar_freq = struct.unpack( 'i', audio_sample_str[ i : i + 4 ] )[ 0 ]
 
 		#normalize
-		bar_freq_norm = bar_freq / float( 0xffffff7f )
-
-		bar_freq_norm *= 2 # magnify
+		bar_freq_norm = bar_freq / float( 0x7fffffff )
 
 		bar_heigth = bar_freq_norm * height + 2
 
@@ -81,7 +92,7 @@ def draw ( ):
 		bar_spacing = 1
 
 		cr.rectangle(
-			( bar_width + bar_spacing ) * ( i / ( CHUNK / 32 ) ),
+			( bar_width + bar_spacing ) * ( i / ( l / 32 ) ),
 			height / 2 - bar_heigth / 2,
 			bar_width,
 			bar_heigth
