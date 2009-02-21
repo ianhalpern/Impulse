@@ -22,13 +22,9 @@ from threading import Thread
 
 from numpy import *
 
-
 if gtk.pygtk_version < ( 2, 9, 0 ):
 	print "PyGtk 2.9.0 or later required"
 	raise SystemExit
-
-SCREEN_WIDTH = 1440
-SCREEN_HEIGHT = 900
 
 CHUNK = 1024    # audio stream buffer size
 
@@ -68,7 +64,9 @@ def draw ( ):
 
 	l = len( audio_sample_array )
 
+	gdk.threads_enter( )
 	width, height = pixmap.get_size( )
+	gdk.threads_leave( )
 
 	cst = cairo.ImageSurface( cairo.FORMAT_ARGB32, width, height )
 
@@ -103,6 +101,8 @@ def draw ( ):
 
 	# end drawing
 
+	gdk.threads_enter( )
+
 	cr_pixmap = pixmap.cairo_create( )
 
 	cr_pixmap.set_source_rgba( 1.0, 1.0, 1.0, 0.0 ) # Transparent
@@ -112,6 +112,8 @@ def draw ( ):
 
 	cr_pixmap.set_source_surface( cst, 0, 0 )
 	cr_pixmap.paint( )
+
+	gdk.threads_leave( )
 
 	return False
 
@@ -128,16 +130,19 @@ def screenChanged ( widget, old_screen=None ):
 def timerExecFrame ( win ):
 	global pixmap
 	draw( )
+
+	gdk.threads_enter( )
 	width, height = pixmap.get_size( )
 	win.queue_draw_area( 0, 0, width, height )
 	win.window.process_updates( True )
+	gdk.threads_leave( )
 
-def discontinueProcessing (signl, frme):
-    global keep_processing
-    keep_processing = False
-    return 0
+def discontinueProcessing ( ):
+	global keep_processing
+	keep_processing = False
+	return 0
 
-def captureAudio ( win ):
+def captureAudio ( ):
 	global keep_processing, audio_sample
 
 	audio_stream = os.popen3( "esdmon" )
@@ -148,8 +153,16 @@ def captureAudio ( win ):
 	for stream in audio_stream:
 		stream.close( )
 
-	print "\nHelper Thread Die..."
+	print "\ncaptureAudio Thread Die..."
 
+def animationLoop ( win ):
+	global keep_processing
+
+	while keep_processing:
+		timerExecFrame( win )
+		time.sleep( 1.0 / 30 )
+
+	print "\nanimationLoop Thread Die..."
 #def triggerRedraw ( win ):
 #	width, height = win.get_size( )
 #	win.queue_draw_area(0, 0, width, height)
@@ -159,8 +172,14 @@ def captureAudio ( win ):
 def main(args):
 	global keep_processing, pixmap
 
+	gdk.threads_init( )
+	gdk.threads_enter( )
+
+
 	width = 544
 	height = 300
+
+	screen = gdk.screen_get_default( )
 
 	win = gtk.Window( )
 
@@ -188,24 +207,49 @@ def main(args):
 	win.set_app_paintable(  True )
 	win.set_double_buffered( False )
 
-	t = Thread( target=captureAudio, args=(win,) )
-	t.start( )
+	screen_rect = screen.get_monitor_geometry( 0 )
 
-	win.move( SCREEN_WIDTH / 2 - width / 2, SCREEN_HEIGHT / 2 - height / 2 )
+	win.move( screen_rect.width / 2 - width / 2 + screen_rect.x, screen_rect.height / 2 - height / 2 + screen_rect.y )
+
+
+	ca_thread = Thread( target=captureAudio )
+	ca_thread.start( )
+
+	al_thread = Thread( target=animationLoop, args=(win,) )
+	al_thread.start( )
+
+	#try:
+	#	while keep_processing:
+	#		timerExecFrame( win )
+	#		time.sleep( 1.0 / 30 )
+	#except KeyboardInterrupt:
+	#	print "Error: KeyboardInterrupt Caught..."
+
 	try:
-		while keep_processing:
-			timerExecFrame( win )
-			time.sleep( 1.0 / 30 )
+		gtk.main( )
 	except KeyboardInterrupt:
-		print "Error: KeyboardInterrupt Caught..."
-		discontinueProcessing( )
+		pass
 
-	t.join( )
+	gdk.threads_leave( )
+
+	discontinueProcessing( )
+
+	ca_thread.join( )
+	#al_thread.join( )
+
 
 	print "Main Thead Die..."
 	return True
 
 if __name__ == '__main__':
-	signal.signal( signal.SIGINT, discontinueProcessing )
+
+	try:
+		import ctypes
+		libc = ctypes.CDLL('libc.so.6')
+		libc.prctl(15, sys.argv[ 0 ], 0, 0, 0)
+	except:
+		pass
+
+	#signal.signal( signal.SIGINT, discontinueProcessing )
 	sys.exit( main( sys.argv ) )
 

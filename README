@@ -1,0 +1,4 @@
+Requires:
+	python-numpy
+	python-gtk2
+	python-cairo
