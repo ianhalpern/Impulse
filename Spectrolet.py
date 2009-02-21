@@ -16,7 +16,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import os, sys, gtk, cairo, time, random, struct, signal
+import os, sys, gtk, cairo, time, random, struct, signal, gobject
 from gtk import gdk
 from threading import Thread
 
@@ -64,9 +64,9 @@ def draw ( ):
 
 	l = len( audio_sample_array )
 
-	gdk.threads_enter( )
+	#gdk.threads_enter( )
 	width, height = pixmap.get_size( )
-	gdk.threads_leave( )
+	#gdk.threads_leave( )
 
 	cst = cairo.ImageSurface( cairo.FORMAT_ARGB32, width, height )
 
@@ -101,7 +101,7 @@ def draw ( ):
 
 	# end drawing
 
-	gdk.threads_enter( )
+	#gdk.threads_enter( )
 
 	cr_pixmap = pixmap.cairo_create( )
 
@@ -113,7 +113,7 @@ def draw ( ):
 	cr_pixmap.set_source_surface( cst, 0, 0 )
 	cr_pixmap.paint( )
 
-	gdk.threads_leave( )
+	#gdk.threads_leave( )
 
 	return False
 
@@ -131,11 +131,11 @@ def timerExecFrame ( win ):
 	global pixmap
 	draw( )
 
-	gdk.threads_enter( )
 	width, height = pixmap.get_size( )
 	win.queue_draw_area( 0, 0, width, height )
 	win.window.process_updates( True )
-	gdk.threads_leave( )
+
+	return True
 
 def discontinueProcessing ( ):
 	global keep_processing
@@ -215,8 +215,10 @@ def main(args):
 	ca_thread = Thread( target=captureAudio )
 	ca_thread.start( )
 
-	al_thread = Thread( target=animationLoop, args=(win,) )
-	al_thread.start( )
+	gobject.timeout_add(33, timerExecFrame, win)
+
+	#al_thread = Thread( target=animationLoop, args=(win,) )
+	#al_thread.start( )
 
 	#try:
 	#	while keep_processing:
