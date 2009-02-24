@@ -28,6 +28,11 @@ if gtk.pygtk_version < ( 2, 9, 0 ):
 
 CHUNK = 1024    # audio stream buffer size
 
+BITS = 16
+CHANNELS = 2
+
+MAX_AMP = 2 ** ( BITS ) / 2 - 1
+
 keep_processing = True
 
 audio_sample = ""
@@ -58,7 +63,28 @@ def draw ( ):
 
 	audio_sample_str = audio_sample.ljust( CHUNK, chr( 0x00 ) )
 
-	audio_sample_array = array( map( ord, struct.unpack( 'c' * CHUNK, audio_sample_str ) ) )
+	audio_sample_array = [ ]
+
+	for i in range( CHUNK / ( ( BITS * CHANNELS ) / 8 ) ):
+
+		avg_amp = 0.0
+
+		for n in range( CHANNELS ):
+			amp = 0
+
+			for c in range( BITS / 8 ):
+				amp += ord( audio_sample_str[ i + ( n * BITS / 8 ) + c ] ) << ( c * 8 )
+
+			amp = ( amp + 2 ** ( BITS - 1 ) ) % 2 ** BITS - 2 ** ( BITS - 1 )
+
+			avg_amp += amp
+
+		avg_amp /= CHANNELS
+
+		audio_sample_array.append( avg_amp / MAX_AMP )
+
+
+	#audio_sample_array = array( struct.unpack( 'h' * ( CHUNK / ( BITS / 8 ) ), audio_sample_str ) )
 
 	# audio_sample_array = fft.fft( audio_sample_array )
 
@@ -76,24 +102,22 @@ def draw ( ):
 
 	cr.set_source_rgba( 0.0, 0.6, 1.0, 0.8 )
 
-	for i in range( 0, l, l / 32 ):
-		bar_freq = struct.unpack( 'i', ''.join( map( chr, audio_sample_array[ i : i + 4 ] ) ) )[ 0 ]
+	n_bars = 32
+	bar_width = 16
+	bar_spacing = 1
 
-		#bar_freq = struct.unpack( 'i', audio_sample_str[ i : i + 4 ] )[ 0 ]
+	for i in range( 0, l, l / n_bars ):
 
-		#normalize
-		bar_freq_norm = bar_freq / float( 0x7fffffff )
+		bar_amp_norm = audio_sample_array[ i ]
 
-		bar_heigth = bar_freq_norm * height + 2
+		bar_height = bar_amp_norm * height + 2
 
-		bar_width = 16
-		bar_spacing = 1
 
 		cr.rectangle(
-			( bar_width + bar_spacing ) * ( i / ( l / 32 ) ),
-			height / 2 - bar_heigth / 2,
+			( bar_width + bar_spacing ) * ( i / ( l / n_bars ) ),
+			height / 2 - bar_height / 2,
 			bar_width,
-			bar_heigth
+			bar_height
 		)
 
 	cr.fill( )
@@ -129,6 +153,7 @@ def screenChanged ( widget, old_screen=None ):
 
 def timerExecFrame ( win ):
 	global pixmap
+
 	draw( )
 
 	width, height = pixmap.get_size( )
