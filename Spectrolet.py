@@ -31,12 +31,13 @@ CHUNK = 1024    # audio stream buffer size
 BITS = 16
 CHANNELS = 2
 
-MAX_AMP = 2 ** ( BITS ) / 2 - 1
-
 keep_processing = True
 
 audio_sample = ""
 pixmap = None
+
+peak_heights = [ 0 for i in range( 32 ) ]
+total_peak_heights = [ 1 for i in range( 257 ) ]
 
 # This is called when we need to draw the windows contents
 def expose ( widget, event=None ):
@@ -81,14 +82,24 @@ def draw ( ):
 
 		avg_amp /= CHANNELS
 
-		audio_sample_array.append( avg_amp / MAX_AMP )
+		audio_sample_array.append( avg_amp )
+
+	fft_array = fft.fft( array( audio_sample_array ) )
+
+	ffted_array = [ ]
+
+	i = 1
+
+	for x in fft_array:
+		i += 1
+
+		if total_peak_heights[ i - 1 ] < sqrt( x.real ** 2 + x.imag ** 2 ):
+			total_peak_heights[ i - 1 ] = sqrt( x.real ** 2 + x.imag ** 2 )
 
 
-	#audio_sample_array = array( struct.unpack( 'h' * ( CHUNK / ( BITS / 8 ) ), audio_sample_str ) )
+		ffted_array.append( sqrt( x.real ** 2 + x.imag ** 2 ) / total_peak_heights[ i - 1 ] )
 
-	# audio_sample_array = fft.fft( audio_sample_array )
-
-	l = len( audio_sample_array )
+	l = len( ffted_array ) / 4
 
 	#gdk.threads_enter( )
 	width, height = pixmap.get_size( )
@@ -100,25 +111,49 @@ def draw ( ):
 
 	# start drawing spectrum
 
-	cr.set_source_rgba( 0.0, 0.6, 1.0, 0.8 )
-
 	n_bars = 32
 	bar_width = 16
 	bar_spacing = 1
 
-	for i in range( 0, l, l / n_bars ):
+	for i in range( 1, l, l / n_bars ):
 
-		bar_amp_norm = audio_sample_array[ i ]
+		cr.set_source_rgba( 0.0, 0.6, 1.0, 0.8 )
+		#bar_amp_norm = audio_sample_array[ i ]
 
-		bar_height = bar_amp_norm * height + 2
+		bar_amp_norm = ffted_array[ i ]
 
+		bar_height = bar_amp_norm * height + 3
 
+		peak_index = int( ( i - 1 ) / ( l / n_bars ) )
+		#print peak_index
+
+		if bar_height > peak_heights[ peak_index ]:
+			peak_heights[ peak_index ] = bar_height
+		else:
+			peak_heights[ peak_index ] -= 3
+
+		if peak_heights[ peak_index ] < 3:
+			peak_heights[ peak_index ] = 3
+
+		for j in range( 0, int( bar_height / 3 ) ):
+			cr.rectangle(
+				( bar_width + bar_spacing ) * ( i / ( l / n_bars ) ),
+				height - j * 3,
+				bar_width,
+				-2
+			)
+
+		cr.fill( )
+
+		cr.set_source_rgba( 1.0, 0.0, 0.0, 0.8 )
 		cr.rectangle(
 			( bar_width + bar_spacing ) * ( i / ( l / n_bars ) ),
-			height / 2 - bar_height / 2,
+			height - int( peak_heights[ peak_index ] ),
 			bar_width,
-			bar_height
+			-2
 		)
+
+		cr.fill( )
 
 	cr.fill( )
 	cr.stroke( )
@@ -188,6 +223,7 @@ def animationLoop ( win ):
 		time.sleep( 1.0 / 30 )
 
 	print "\nanimationLoop Thread Die..."
+
 #def triggerRedraw ( win ):
 #	width, height = win.get_size( )
 #	win.queue_draw_area(0, 0, width, height)
@@ -202,7 +238,7 @@ def main(args):
 
 
 	width = 544
-	height = 300
+	height = 100
 
 	screen = gdk.screen_get_default( )
 
@@ -240,17 +276,7 @@ def main(args):
 	ca_thread = Thread( target=captureAudio )
 	ca_thread.start( )
 
-	gobject.timeout_add(33, timerExecFrame, win)
-
-	#al_thread = Thread( target=animationLoop, args=(win,) )
-	#al_thread.start( )
-
-	#try:
-	#	while keep_processing:
-	#		timerExecFrame( win )
-	#		time.sleep( 1.0 / 30 )
-	#except KeyboardInterrupt:
-	#	print "Error: KeyboardInterrupt Caught..."
+	gobject.timeout_add( 33, timerExecFrame, win )
 
 	try:
 		gtk.main( )
@@ -262,8 +288,6 @@ def main(args):
 	discontinueProcessing( )
 
 	ca_thread.join( )
-	#al_thread.join( )
-
 
 	print "Main Thead Die..."
 	return True
