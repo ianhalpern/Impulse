@@ -1,4 +1,16 @@
+Spectrolet is a bit of eye-candy for your desktop. It is a widget that displays a graphical spectrum analyzer semi-transparently on your gnome desktop. It is written in python and uses GTK and cairo graphics to generate the animation. The systems mixed raw audio stream is currently captured using pulseaudio (parec).
+
 Requires:
 	python-numpy
 	python-gtk2
 	python-cairo
+	pulseaudio-utils
+
+Install:
+1) Install packages ( Ubuntu ):
+sudo apt-get install python-numpy python-gtk2 python-cairo pulseaudio-utils
+
+3) Download and extract Spectrolet.tar.bz2
+4) Execute program :
+python ./Spectrolet/Spectrolet.py
+or doubleclick Spectrolet.py file and click run
