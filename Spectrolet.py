@@ -205,7 +205,9 @@ def discontinueProcessing ( ):
 def captureAudio ( ):
 	global keep_processing, audio_sample
 
-	audio_stream = os.popen3( "esdmon" )
+	device = os.popen( "pactl list | grep monitor" ).readline( ).strip( )[len( "Name: " ):]
+
+	audio_stream = os.popen3( "pacat -r -d %s" % device )
 
 	while keep_processing:
 		audio_sample = audio_stream[ 1 ].read( CHUNK )
@@ -270,7 +272,7 @@ def main(args):
 
 	screen_rect = screen.get_monitor_geometry( 0 )
 
-	win.move( screen_rect.width / 2 - width / 2 + screen_rect.x, screen_rect.height / 2 - height / 2 + screen_rect.y )
+	win.move( screen_rect.width / 2 - width / 2 + screen_rect.x, screen_rect.height / 2 - height / 2 + screen_rect.y  )
 
 
 	ca_thread = Thread( target=captureAudio )
