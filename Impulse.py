@@ -18,9 +18,10 @@
 
 import os, sys, gtk, cairo, time, random, struct, signal, gobject
 from gtk import gdk
-from threading import Thread
 
 from numpy import *
+
+from cimpulse import cimpulse
 
 if gtk.pygtk_version < ( 2, 9, 0 ):
 	print "PyGtk 2.9.0 or later required"
@@ -31,9 +32,6 @@ CHUNK = 1024    # audio stream buffer size
 BITS = 16
 CHANNELS = 2
 
-keep_processing = True
-
-audio_sample = ""
 pixmap = None
 
 peak_heights = [ 0 for i in range( 32 ) ]
@@ -52,9 +50,9 @@ def expose ( widget, event=None ):
 
 
 def draw ( ):
-	global audio_sample, pixmap
+	global pixmap
 
-	#audio_sample = ""
+	audio_sample = cimpulse.getSnapshot( )
 
 	if not audio_sample:
 		audio_sample = ""
@@ -101,9 +99,7 @@ def draw ( ):
 
 	l = len( ffted_array ) / 4
 
-	#gdk.threads_enter( )
 	width, height = pixmap.get_size( )
-	#gdk.threads_leave( )
 
 	cst = cairo.ImageSurface( cairo.FORMAT_ARGB32, width, height )
 
@@ -160,8 +156,6 @@ def draw ( ):
 
 	# end drawing
 
-	#gdk.threads_enter( )
-
 	cr_pixmap = pixmap.cairo_create( )
 
 	cr_pixmap.set_source_rgba( 1.0, 1.0, 1.0, 0.0 ) # Transparent
@@ -171,8 +165,6 @@ def draw ( ):
 
 	cr_pixmap.set_source_surface( cst, 0, 0 )
 	cr_pixmap.paint( )
-
-	#gdk.threads_leave( )
 
 	return False
 
@@ -197,34 +189,6 @@ def timerExecFrame ( win ):
 
 	return True
 
-def discontinueProcessing ( ):
-	global keep_processing
-	keep_processing = False
-	return 0
-
-def captureAudio ( ):
-	global keep_processing, audio_sample
-
-	device = os.popen( "pactl list | grep monitor" ).readline( ).strip( )[len( "Name: " ):]
-
-	audio_stream = os.popen3( "pacat -r -d %s" % device )
-
-	while keep_processing:
-		audio_sample = audio_stream[ 1 ].read( CHUNK )
-
-	for stream in audio_stream:
-		stream.close( )
-
-	print "\ncaptureAudio Thread Die..."
-
-def animationLoop ( win ):
-	global keep_processing
-
-	while keep_processing:
-		timerExecFrame( win )
-		time.sleep( 1.0 / 30 )
-
-	print "\nanimationLoop Thread Die..."
 
 #def triggerRedraw ( win ):
 #	width, height = win.get_size( )
@@ -233,11 +197,7 @@ def animationLoop ( win ):
 
 
 def main(args):
-	global keep_processing, pixmap
-
-	gdk.threads_init( )
-	gdk.threads_enter( )
-
+	global pixmap
 
 	width = 544
 	height = 100
@@ -275,9 +235,6 @@ def main(args):
 	win.move( screen_rect.width / 2 - width / 2 + screen_rect.x, screen_rect.height / 2 - height / 2 + screen_rect.y  )
 
 
-	ca_thread = Thread( target=captureAudio )
-	ca_thread.start( )
-
 	gobject.timeout_add( 33, timerExecFrame, win )
 
 	try:
@@ -285,13 +242,6 @@ def main(args):
 	except KeyboardInterrupt:
 		pass
 
-	gdk.threads_leave( )
-
-	discontinueProcessing( )
-
-	ca_thread.join( )
-
-	print "Main Thead Die..."
 	return True
 
 if __name__ == '__main__':
@@ -299,7 +249,7 @@ if __name__ == '__main__':
 	try:
 		import ctypes
 		libc = ctypes.CDLL('libc.so.6')
-		libc.prctl(15, sys.argv[ 0 ], 0, 0, 0)
+		libc.prctl(15, os.path.split( sys.argv[ 0 ] )[ 1 ], 0, 0, 0)
 	except:
 		pass
 
