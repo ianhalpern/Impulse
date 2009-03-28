@@ -4,6 +4,6 @@ make:
 cimpulse:
 	#python setup.py build
 	gcc -pthread -fno-strict-aliasing -DNDEBUG -g -fwrapv -O2 -Wall -Wstrict-prototypes -fPIC -I/usr/include/python2.5 -c cimpulsemodule.c -o cimpulsemodule.o
-	gcc -pthread -lpulse -shared -Wl,-O1 -Wl,-Bsymbolic-functions cimpulsemodule.o -o cimpulse.so
+	gcc -pthread -lpulse -lfftw3 -shared -Wl,-O1 -Wl,-Bsymbolic-functions cimpulsemodule.o -o cimpulse.so
 	rm cimpulsemodule.o
 

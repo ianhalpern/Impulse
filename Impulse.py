@@ -19,7 +19,7 @@
 import os, sys, gtk, cairo, time, random, struct, signal, gobject
 from gtk import gdk
 
-from numpy import *
+#from numpy import *
 
 from cimpulse import cimpulse
 
@@ -54,105 +54,128 @@ def draw ( ):
 
 	audio_sample = cimpulse.getSnapshot( )
 
-	if not audio_sample:
-		audio_sample = ""
+	fft = True
 
-		#for x in range( CHUNK ):
-		#	audio_sample += chr( int( random.random( ) * 256 ) )
+	if fft:
+		audio_sample_array = audio_sample
+		fft_array = audio_sample_array
 
-	audio_sample_str = audio_sample.ljust( CHUNK, chr( 0x00 ) )
+		ffted_array = [ ]
 
-	audio_sample_array = [ ]
+		i = 1
 
-	for i in range( CHUNK / ( ( BITS * CHANNELS ) / 8 ) ):
+		for x in fft_array:
+			i += 1
 
-		avg_amp = 0.0
-
-		for n in range( CHANNELS ):
-			amp = 0
-
-			for c in range( BITS / 8 ):
-				amp += ord( audio_sample_str[ i + ( n * BITS / 8 ) + c ] ) << ( c * 8 )
-
-			amp = ( amp + 2 ** ( BITS - 1 ) ) % 2 ** BITS - 2 ** ( BITS - 1 )
-
-			avg_amp += amp
-
-		avg_amp /= CHANNELS
-
-		audio_sample_array.append( avg_amp )
-
-	fft_array = fft.fft( array( audio_sample_array ) )
-
-	ffted_array = [ ]
-
-	i = 1
-
-	for x in fft_array:
-		i += 1
-
-		if total_peak_heights[ i - 1 ] < sqrt( x.real ** 2 + x.imag ** 2 ):
-			total_peak_heights[ i - 1 ] = sqrt( x.real ** 2 + x.imag ** 2 )
+			if total_peak_heights[ i - 1 ] < x:
+				total_peak_heights[ i - 1 ] = x
 
 
-		ffted_array.append( sqrt( x.real ** 2 + x.imag ** 2 ) / total_peak_heights[ i - 1 ] )
+			ffted_array.append( float( x ) / total_peak_heights[ i - 1 ] )
 
-	l = len( ffted_array ) / 4
+		l = len( ffted_array ) / 4
 
-	width, height = pixmap.get_size( )
+		width, height = pixmap.get_size( )
 
-	cst = cairo.ImageSurface( cairo.FORMAT_ARGB32, width, height )
+		cst = cairo.ImageSurface( cairo.FORMAT_ARGB32, width, height )
 
-	cr = cairo.Context( cst )
+		cr = cairo.Context( cst )
 
-	# start drawing spectrum
+		# start drawing spectrum
 
-	n_bars = 32
-	bar_width = 16
-	bar_spacing = 1
+		n_bars = 32
+		bar_width = 16
+		bar_spacing = 1
 
-	for i in range( 1, l, l / n_bars ):
+		for i in range( 1, l, l / n_bars ):
 
-		cr.set_source_rgba( 0.0, 0.6, 1.0, 0.8 )
-		#bar_amp_norm = audio_sample_array[ i ]
+			cr.set_source_rgba( 0.0, 0.6, 1.0, 0.8 )
+			#bar_amp_norm = audio_sample_array[ i ]
 
-		bar_amp_norm = ffted_array[ i ]
+			bar_amp_norm = ffted_array[ i ]
 
-		bar_height = bar_amp_norm * height + 3
+			bar_height = bar_amp_norm * height + 3
 
-		peak_index = int( ( i - 1 ) / ( l / n_bars ) )
-		#print peak_index
+			peak_index = int( ( i - 1 ) / ( l / n_bars ) )
+			#print peak_index
 
-		if bar_height > peak_heights[ peak_index ]:
-			peak_heights[ peak_index ] = bar_height
-		else:
-			peak_heights[ peak_index ] -= 3
+			if bar_height > peak_heights[ peak_index ]:
+				peak_heights[ peak_index ] = bar_height
+			else:
+				peak_heights[ peak_index ] -= 3
 
-		if peak_heights[ peak_index ] < 3:
-			peak_heights[ peak_index ] = 3
+			if peak_heights[ peak_index ] < 3:
+				peak_heights[ peak_index ] = 3
 
-		for j in range( 0, int( bar_height / 3 ) ):
+			for j in range( 0, int( bar_height / 3 ) ):
+				cr.rectangle(
+					( bar_width + bar_spacing ) * ( i / ( l / n_bars ) ),
+					height - j * 3,
+					bar_width,
+					-2
+				)
+
+			cr.fill( )
+
+			cr.set_source_rgba( 1.0, 0.0, 0.0, 0.8 )
 			cr.rectangle(
 				( bar_width + bar_spacing ) * ( i / ( l / n_bars ) ),
-				height - j * 3,
+				height - int( peak_heights[ peak_index ] ),
 				bar_width,
 				-2
 			)
 
-		cr.fill( )
-
-		cr.set_source_rgba( 1.0, 0.0, 0.0, 0.8 )
-		cr.rectangle(
-			( bar_width + bar_spacing ) * ( i / ( l / n_bars ) ),
-			height - int( peak_heights[ peak_index ] ),
-			bar_width,
-			-2
-		)
+			cr.fill( )
 
 		cr.fill( )
+		cr.stroke( )
+	else:
 
-	cr.fill( )
-	cr.stroke( )
+		audio_sample_array = [ ]
+
+		for i in range( len( audio_sample ) / 2 ):
+
+			avg_amp = 0.0
+
+			for n in range( 2 ):
+				avg_amp += audio_sample[ i * 2 + n ]
+
+			avg_amp /= CHANNELS
+
+			audio_sample_array.append( avg_amp / ( 2 ** 16 / 2 ) )
+
+		l = len( audio_sample_array )
+
+		width, height = pixmap.get_size( )
+
+		cst = cairo.ImageSurface( cairo.FORMAT_ARGB32, width, height )
+
+		cr = cairo.Context( cst )
+
+		# start drawing spectrum
+
+		cr.set_source_rgba( 0.0, 0.6, 1.0, 0.8 )
+
+		n_bars = 32
+		bar_width = 16
+		bar_spacing = 1
+
+		for i in range( 0, l, l / n_bars ):
+
+			bar_amp_norm = audio_sample_array[ i ]
+
+			bar_height = bar_amp_norm * height + 2
+
+			cr.rectangle(
+				( bar_width + bar_spacing ) * ( i / ( l / n_bars ) ),
+				height / 2 - bar_height / 2,
+				bar_width,
+				bar_height
+			)
+
+		cr.fill( )
+		cr.stroke( )
+
 
 	# end drawing
 
@@ -241,6 +264,8 @@ def main(args):
 		gtk.main( )
 	except KeyboardInterrupt:
 		pass
+
+	print total_peak_heights
 
 	return True
 
