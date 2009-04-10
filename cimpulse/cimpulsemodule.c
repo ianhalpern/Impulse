@@ -16,6 +16,8 @@
 
 #define CHUNK 1024
 
+const long fft_max[] = { 12317168L, 7693595L, 5863615L, 4082974L, 5836037L, 4550263L, 3377914L, 3085778L, 3636534L, 3751823L, 2660548L, 3313252L, 2698853L, 2186441L, 1697466L, 1960070L, 1286950L, 1252382L, 1313726L, 1140443L, 1345589L, 1269153L, 897605L, 900408L, 892528L, 587972L, 662925L, 668177L, 686784L, 656330L, 1580286L, 785491L, 761213L, 730185L, 851753L, 927848L, 891221L, 634291L, 833909L, 646617L, 804409L, 1015627L, 671714L, 813811L, 689614L, 727079L, 853936L, 819333L, 679111L, 730295L, 836287L, 1602396L, 990827L, 773609L, 733606L, 638993L, 604530L, 573002L, 634570L, 1015040L, 679452L, 672091L, 880370L, 1140558L, 1593324L, 686787L, 781368L, 605261L, 1190262L, 525205L, 393080L, 409546L, 436431L, 723744L, 765299L, 393927L, 322105L, 478074L, 458596L, 512763L, 381303L, 671156L, 1177206L, 476813L, 366285L, 436008L, 361763L, 252316L, 204433L, 291331L, 296950L, 329226L, 319209L, 258334L, 388701L, 543025L, 396709L, 296099L, 190213L, 167976L, 138928L, 116720L, 163538L, 331761L, 133932L, 187456L, 530630L, 131474L, 84888L, 82081L, 122379L, 82914L, 75510L, 62669L, 73492L, 68775L, 57121L, 94098L, 68262L, 68307L, 48801L, 46864L, 61480L, 46607L, 45974L, 45819L, 45306L, 45110L, 45175L, 44969L, 44615L, 44440L, 44066L, 43600L, 57117L, 43332L, 59980L, 55319L, 54385L, 81768L, 51165L, 54785L, 73248L, 52494L, 57252L, 61869L, 65900L, 75893L, 65152L, 108009L, 421578L, 152611L, 135307L, 254745L, 132834L, 169101L, 137571L, 141159L, 142151L, 211389L, 267869L, 367730L, 256726L, 185238L, 251197L, 204304L, 284443L, 258223L, 158730L, 228565L, 375950L, 294535L, 288708L, 351054L, 694353L, 477275L, 270576L, 426544L, 362456L, 441219L, 313264L, 300050L, 421051L, 414769L, 244296L, 292822L, 262203L, 418025L, 579471L, 418584L, 419449L, 405345L, 739170L, 488163L, 376361L, 339649L, 313814L, 430849L, 275287L, 382918L, 297214L, 286238L, 367684L, 303578L, 516246L, 654782L, 353370L, 417745L, 392892L, 418934L, 475608L, 284765L, 260639L, 288961L, 301438L, 301305L, 329190L, 252484L, 272364L, 261562L, 208419L, 203045L, 229716L, 191240L, 328251L, 267655L, 322116L, 509542L, 498288L, 341654L, 346341L, 451042L, 452194L, 467716L, 447635L, 644331L, 1231811L, 1181923L, 1043922L, 681166L, 1078456L, 1088757L, 1221378L, 1358397L, 1817252L, 1255182L, 1410357L, 2264454L, 1880361L, 1630934L, 1147988L, 1919954L, 1624734L, 1373554L, 1865118L, 2431931L };
+
 int16_t buffer[ CHUNK / 2 ], snapshot[ CHUNK / 2 ];
 static size_t buffer_index = 0;
 
@@ -135,21 +137,24 @@ static PyObject * cimpulse_getMonitorDevice( PyObject *self, PyObject *args ) {
 	return PyString_FromString( device );
 }
 
-static PyObject * cimpulse_getSnapshot( PyObject *self, PyObject *args ) {
+static PyObject * cimpulse_getSnapshot( PyObject *self, PyObject *args, PyObject *kwargs ) {
 	PyObject *magnitude;
+	int fft = 0;
 
-	int fft = 1;
+	static char *kwlist[] = { "fft" };
+
+	PyArg_ParseTupleAndKeywords( args, kwargs, "b", kwlist, &fft );
+
+	magnitude = PyTuple_New( CHUNK / 4 );
 
 	if ( ! fft ) {
-		magnitude = PyTuple_New( CHUNK / 2 );
 		int i;
-		for ( i = 0; i < CHUNK / 2; i++ ) {
+		for ( i = 0; i < CHUNK / 2; i += 2 ) {
 			PyObject *x;
-			x = PyLong_FromLong(snapshot[ i ]);
-			PyTuple_SetItem( magnitude, i, x );
+			x = PyFloat_FromDouble( fabs( ( (double) snapshot[ i ] / ( pow( 2, 16 ) / 2 ) + (double) snapshot[ i + 1 ] / ( pow( 2, 16 ) / 2 ) ) / 2 ) );
+			PyTuple_SetItem( magnitude, i / 2, x );
 		}
 	} else {
-		magnitude = PyTuple_New( CHUNK / 4 );
 
 		double *in;
 		fftw_complex *out;
@@ -174,13 +179,13 @@ static PyObject * cimpulse_getSnapshot( PyObject *self, PyObject *args ) {
 		if ( out != NULL ) {
 			int i;
 			for ( i = 0; i < CHUNK / 4; i++ ) {
+				double tmp = (double) sqrt( pow( out[ i ][ 0 ], 2 ) + pow( out[ i ][ 1 ], 2 ) ) / (double) fft_max[ i ];
+				if ( tmp > 1.0 ) tmp = 1.0;
 				PyObject *x;
-				x = PyLong_FromDouble( sqrt( pow( out[ i ][ 0 ], 2 ) + pow( out[ i ][ 1 ], 2 ) ) );
+				x = PyFloat_FromDouble( tmp );
 				PyTuple_SetItem( magnitude, i, x );
 			}
 		}
-
-		//Py_DECREF( magnitude );
 
 		free( in );
 		fftw_free(out);
@@ -193,7 +198,7 @@ static PyObject *CimpulseError;
 
 static PyMethodDef CimpulseMethods[ ] = {
 	{ "getMonitorDevice",  cimpulse_getMonitorDevice, METH_VARARGS, "Returns the name of the Pulseaudio source device Cimpulse is recording." },
-	{ "getSnapshot",  cimpulse_getSnapshot, METH_VARARGS, "Returns the current audio snapshot from Pulseaudio." },
+	{ "getSnapshot",  (PyCFunction)cimpulse_getSnapshot, METH_VARARGS | METH_KEYWORDS, "Returns the current audio snapshot from Pulseaudio." },
 	{ NULL, NULL, 0, NULL }		/* Sentinel */
 };
 

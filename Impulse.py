@@ -27,15 +27,9 @@ if gtk.pygtk_version < ( 2, 9, 0 ):
 	print "PyGtk 2.9.0 or later required"
 	raise SystemExit
 
-CHUNK = 1024    # audio stream buffer size
-
-BITS = 16
-CHANNELS = 2
-
 pixmap = None
 
 peak_heights = [ 0 for i in range( 32 ) ]
-total_peak_heights = [ 1 for i in range( 257 ) ]
 
 # This is called when we need to draw the windows contents
 def expose ( widget, event=None ):
@@ -52,26 +46,12 @@ def expose ( widget, event=None ):
 def draw ( ):
 	global pixmap
 
-	audio_sample = cimpulse.getSnapshot( )
-
 	fft = True
 
+	audio_sample_array = cimpulse.getSnapshot( fft )
+
 	if fft:
-		audio_sample_array = audio_sample
-		fft_array = audio_sample_array
-
-		ffted_array = [ ]
-
-		i = 1
-
-		for x in fft_array:
-			i += 1
-
-			if total_peak_heights[ i - 1 ] < x:
-				total_peak_heights[ i - 1 ] = x
-
-
-			ffted_array.append( float( x ) / total_peak_heights[ i - 1 ] )
+		ffted_array = audio_sample_array
 
 		l = len( ffted_array ) / 4
 
@@ -130,19 +110,6 @@ def draw ( ):
 		cr.fill( )
 		cr.stroke( )
 	else:
-
-		audio_sample_array = [ ]
-
-		for i in range( len( audio_sample ) / 2 ):
-
-			avg_amp = 0.0
-
-			for n in range( 2 ):
-				avg_amp += audio_sample[ i * 2 + n ]
-
-			avg_amp /= CHANNELS
-
-			audio_sample_array.append( avg_amp / ( 2 ** 16 / 2 ) )
 
 		l = len( audio_sample_array )
 
