@@ -3,7 +3,7 @@
 
 make:
 	#python setup.py build
-	gcc -pthread -fno-strict-aliasing -DNDEBUG -g -fwrapv -O2 -Wall -Wstrict-prototypes -fPIC -I/usr/include/python2.5 -c cimpulsemodule.c -o cimpulsemodule.o
-	gcc -pthread -lpulse -lfftw3 -shared -Wl,-O1 -Wl,-Bsymbolic-functions cimpulsemodule.o -o cimpulse.so
-	rm cimpulsemodule.o
+	gcc -pthread -fno-strict-aliasing -DNDEBUG -g -fwrapv -O2 -Wall -Wstrict-prototypes -fPIC -I/usr/include/python2.5 -c src/cimpulsemodule.c -o src/cimpulsemodule.o
+	gcc -pthread -lpulse -lfftw3 -shared -Wl,-O1 -Wl,-Bsymbolic-functions src/cimpulsemodule.o -o cimpulse.so
+	rm src/cimpulsemodule.o
 

@@ -20,7 +20,7 @@
 
 
 import screenlets, sys, gobject, os
-from cimpulse import cimpulse
+import cimpulse
 
 class ImpulseScreenlet ( screenlets.Screenlet) :
 	"""A PulseAudio graphical spectrum analyzer."""

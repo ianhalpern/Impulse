@@ -22,9 +22,7 @@
 import os, sys, gtk, cairo, time, random, struct, signal, gobject
 from gtk import gdk
 
-#from numpy import *
-
-from cimpulse import cimpulse
+import cimpulse
 
 if gtk.pygtk_version < ( 2, 9, 0 ):
 	print "PyGtk 2.9.0 or later required"
