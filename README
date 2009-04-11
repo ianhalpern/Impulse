@@ -1,16 +1,24 @@
-Spectrolet is a bit of eye-candy for your desktop. It is a widget that displays a graphical spectrum analyzer semi-transparently on your gnome desktop. It is written in python and uses GTK and cairo graphics to generate the animation. The systems mixed raw audio stream is currently captured using pulseaudio (parec).
+Impulse is a bit of eye-candy for your desktop. It is a widget that displays a graphical spectrum analyzer on your gnome desktop. It is written in python and uses GTK and cairo graphics to generate the animation. The cimpulse module creates a pulse audio connection context that reads the output stream from pulseaudio in a thread natively which can then be read from python. You can specify cimpulse to either output the raw stream or output the fft of the raw stream
+
 
 Requires:
-	python-numpy
 	python-gtk2
 	python-cairo
-	pulseaudio-utils
+	libfftw3-3
+	libpulse0
+Screenlet version requires:
+	screenlets
 
 Install:
 1) Install packages ( Ubuntu ):
-sudo apt-get install python-numpy python-gtk2 python-cairo pulseaudio-utils
+sudo apt-get install python-gtk2 python-cairo libfftw3-3
+If you are using the screenlets version
+sudo apt-get install screenlets
 
-3) Download and extract Spectrolet.tar.bz2
+3) Download and extract Impulse.tar.bz2
 4) Execute program :
-python ./Spectrolet/Spectrolet.py
-or doubleclick Spectrolet.py file and click run
+python Impulse/Impulse.py
+or doubleclick Impulse.py file and click run
+If you are using the screenlets version
+mv Impulse ~/.screenlets/
+then open up the screenlets manager and start Impulse
