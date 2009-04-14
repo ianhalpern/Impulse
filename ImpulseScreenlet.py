@@ -53,7 +53,8 @@ class ImpulseScreenlet ( screenlets.Screenlet) :
 		self.redraw_canvas()
 		return True # keep running this event
 
-
+	def on_init ( self ):
+		self.add_default_menuitems( )
 
 	def on_load_theme (self):
 		"""Called when the theme is reloaded (after loading, before redraw)."""

@@ -64,16 +64,22 @@ static void quit( int ret ) {
 }
 
 static void get_source_info_callback( pa_context *c, const pa_source_info *i, int is_last, void *userdata ) {
-	if ( is_last )
+
+	if ( is_last || device != NULL )
 		return;
 
 	assert(i);
 
-	device = pa_xstrdup( i->name );
+	// snprintf(t, sizeof(t), "%u", i->monitor_of_sink);
 
-	if ( ( pa_stream_connect_record( stream, device, NULL, flags ) ) < 0 ) {
-		fprintf(stderr, "pa_stream_connect_record() failed: %s\n", pa_strerror(pa_context_errno(c)));
-		quit(1);
+	if ( i->monitor_of_sink != PA_INVALID_INDEX ) {
+
+		device = pa_xstrdup( i->name );
+
+		if ( ( pa_stream_connect_record( stream, device, NULL, flags ) ) < 0 ) {
+			fprintf(stderr, "pa_stream_connect_record() failed: %s\n", pa_strerror(pa_context_errno(c)));
+			quit(1);
+		}
 	}
 }
 
@@ -129,7 +135,7 @@ static void context_state_callback(pa_context *c, void *userdata) {
 
 			pa_stream_set_read_callback(stream, stream_read_callback, NULL);
 
-			pa_operation_unref( pa_context_get_source_info_by_index( c, 0, get_source_info_callback, NULL ) );
+			pa_operation_unref( pa_context_get_source_info_list( c, get_source_info_callback, NULL ) );
 
 			break;
 		case PA_CONTEXT_TERMINATED:
