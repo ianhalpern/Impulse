@@ -20,7 +20,6 @@
 
 
 import screenlets, sys, gobject, os
-import impulse
 
 class ImpulseScreenlet ( screenlets.Screenlet) :
 	"""A PulseAudio graphical spectrum analyzer."""
@@ -44,6 +43,10 @@ class ImpulseScreenlet ( screenlets.Screenlet) :
 
 		os.chdir( self.get_screenlet_dir( ) )
 		sys.path.append( "themes" )
+
+		import impulse
+
+		sys.modules[ __name__ ].impulse = impulse
 
 		# set theme
 		self.theme_name = "default"

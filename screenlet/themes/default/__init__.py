@@ -93,7 +93,7 @@ def on_draw ( audio_sample_array, cr, screenlet ):
 			peak_heights[ i ] = rows
 			peak_acceleration[ i ] = 0.0
 		else:
-			peak_acceleration[ i ] += .3
+			peak_acceleration[ i ] += .1
 			peak_heights[ i ] -= peak_acceleration[ i ]
 
 		if peak_heights[ i ] < 0:
