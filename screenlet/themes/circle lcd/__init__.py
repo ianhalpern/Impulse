@@ -1,17 +1,31 @@
 import math
 
-fft=True
+from screenlets.options import ColorOption, IntOption
+
+fft = True
+
+cc = ( 0.0, 0.6, 1.0, 0.8 )
 
 def load_theme( screenlet ):
 	screenlet.resize( 300, 300 )
 
-def on_draw( audio_sample_array, cr ):
+	screenlet.add_option( ColorOption(
+		'Impulse', 'cc',
+		cc, 'Color',
+		'Example options group using color'
+	) )
+
+
+def on_after_set_attribute ( self, name, value, screenlet ):
+	setattr( self, name, value )
+
+def on_draw( audio_sample_array, cr, screenlet ):
 
 	l = len( audio_sample_array )
 
 	width, height = ( 300, 300 )
 
-	cr.set_source_rgba( 0.0, 0.6, 1.0, 0.8 )
+	cr.set_source_rgba( cc[ 0 ],  cc[ 1 ],  cc[ 2 ],  cc[ 3 ] )
 
 	n_bars = 32
 

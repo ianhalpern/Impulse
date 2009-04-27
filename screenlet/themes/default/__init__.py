@@ -1,67 +1,124 @@
+from screenlets.options import ColorOption, IntOption
+
 fft = True
 
-peak_heights = [ 0 for i in range( 32 ) ]
-peak_acceleration = [ 0.0 for i in range( 32 ) ]
+peak_heights = [ 0 for i in range( 256 ) ]
+peak_acceleration = [ 0.0 for i in range( 256 ) ]
+
+bar_color = ( 0.0, 0.6, 1.0, 0.8 )
+peak_color = ( 1.0, 0.0, 0.0, 0.8 )
+
+n_cols = 10
+col_width = 16
+col_spacing = 1
+
+n_rows = 30
+row_height = 3
+row_spacing = 1
 
 def load_theme ( screenlet ):
-	screenlet.resize( 170, 100 )
 
-def on_draw ( audio_sample_array, cr ):
+	screenlet.resize( n_cols * col_width + n_cols * col_spacing, 100 )
 
-		ffted_array = audio_sample_array
+	screenlet.add_option( ColorOption(
+		'Impulse', 'bar_color',
+		bar_color, 'Bar color',
+		'Example options group using color'
+	) )
 
-		l = len( ffted_array ) / 4
+	screenlet.add_option( ColorOption(
+		'Impulse', 'peak_color',
+		peak_color, 'Peak color',
+		'Example options group using color')
+	)
 
-		width, height = ( 170, 100 )
+	screenlet.add_option( IntOption(
+		'Impulse', 'n_cols',
+		n_cols, 'Number of columns',
+		'Example options group using integer',
+		min=1, max=256
+	) )
 
-		# start drawing spectrum
+	screenlet.add_option( IntOption(
+		'Impulse', 'col_width',
+		col_width, 'Column width',
+		'Example options group using integer',
+		min=1, max=256
+	) )
 
-		n_bars = 10
-		bar_width = 16
-		bar_spacing = 1
+	screenlet.add_option( IntOption(
+		'Impulse', 'col_spacing',
+		col_spacing, 'Column Spacing',
+		'Example options group using integer',
+		min=1, max=256
+	) )
 
-		for i in range( 1, l, l / n_bars ):
+	screenlet.add_option( IntOption(
+		'Impulse', 'n_rows',
+		n_rows, 'Number of rows',
+		'Example options group using integer',
+		min=1, max=256
+	) )
 
-			cr.set_source_rgba( 0.0, 0.6, 1.0, 0.8 )
-			#bar_amp_norm = audio_sample_array[ i ]
+	screenlet.add_option( IntOption(
+		'Impulse', 'row_height',
+		row_height, 'Row height',
+		'Example options group using integer',
+		min=1, max=256
+	) )
 
-			bar_amp_norm = ffted_array[ i ]
+	screenlet.add_option( IntOption(
+		'Impulse', 'row_spacing',
+		row_spacing, 'Row Spacing',
+		'Example options group using integer',
+		min=1, max=256
+	) )
 
-			bar_height = bar_amp_norm * ( height - 6 ) + 3
+def on_after_set_attribute ( self, name, value, screenlet ):
+	setattr( self, name, value )
+	screenlet.resize( n_cols * ( col_width + col_spacing ), n_rows * ( row_height + row_spacing ) )
 
-			peak_index = int( ( i - 1 ) / ( l / n_bars ) )
-			#print peak_index
+def on_draw ( audio_sample_array, cr, screenlet ):
 
-			if bar_height > peak_heights[ peak_index ]:
-				peak_acceleration[ peak_index ] = 0.0
-				peak_heights[ peak_index ] = bar_height
-			else:
-				peak_acceleration[ peak_index ] += .3
-				peak_heights[ peak_index ] -= peak_acceleration[ peak_index ]
+	freq = len( audio_sample_array ) / n_cols
 
-			if peak_heights[ peak_index ] < 3:
-				peak_heights[ peak_index ] = 3
+	for i in range( 0, len( audio_sample_array ), freq ):
 
-			for j in range( 0, int( bar_height / 3 ) ):
-				cr.rectangle(
-					( bar_width + bar_spacing ) * ( i / ( l / n_bars ) ),
-					height - j * 3,
-					bar_width,
-					-2
-				)
+		col = i / freq
+		rows = int( audio_sample_array[ i ] * n_rows )
 
-			cr.fill( )
+		cr.set_source_rgba( bar_color[ 0 ], bar_color[ 1 ], bar_color[ 2 ], bar_color[ 3 ] )
 
-			cr.set_source_rgba( 1.0, 0.0, 0.0, 0.8 )
+		if rows > peak_heights[ i ]:
+			peak_heights[ i ] = rows
+			peak_acceleration[ i ] = 0.0
+		else:
+			peak_acceleration[ i ] += .3
+			peak_heights[ i ] -= peak_acceleration[ i ]
+
+		if peak_heights[ i ] < 0:
+			peak_heights[ i ] = 0
+
+		for row in range( 0, rows ):
+
 			cr.rectangle(
-				( bar_width + bar_spacing ) * ( i / ( l / n_bars ) ),
-				height - int( peak_heights[ peak_index ] ),
-				bar_width,
-				-2
+				col * ( col_width + col_spacing ),
+				screenlet.height - row * ( row_height + row_spacing ),
+				col_width, -row_height
 			)
 
-			cr.fill( )
+		cr.fill( )
+
+		cr.set_source_rgba( peak_color[ 0 ], peak_color[ 1 ], peak_color[ 2 ], peak_color[ 3 ] )
+
+		cr.rectangle(
+			col * ( col_width + col_spacing ),
+			screenlet.height - peak_heights[ i ] * ( row_height + row_spacing ),
+			col_width, -row_height
+		)
 
 		cr.fill( )
-		cr.stroke( )
+
+	cr.fill( )
+	cr.stroke( )
 

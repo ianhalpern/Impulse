@@ -20,14 +20,14 @@
 
 
 import screenlets, sys, gobject, os
-import cimpulse
+import impulse
 
 class ImpulseScreenlet ( screenlets.Screenlet) :
 	"""A PulseAudio graphical spectrum analyzer."""
 
 	# default meta-info for Screenlets (should be removed and put into metainfo)
 	__name__	= 'ImpulseScreenlet'
-	__version__	= '0.1'
+	__version__	= '0.5'
 	__author__	= 'Ian Halpern'
 	__desc__	= __doc__	# set description to docstring of class
 
@@ -38,6 +38,9 @@ class ImpulseScreenlet ( screenlets.Screenlet) :
 		screenlets.Screenlet.__init__(self, width=200, height=200,
 			uses_theme=True, **keyword_args)
 
+		self.add_options_group( 'Impulse', 'Change the look of Impulse.\
+			\n\nIf you just changed the theme\
+			\nplease close and reopen this window to edit the theme.' )
 
 		os.chdir( self.get_screenlet_dir( ) )
 		sys.path.append( "themes" )
@@ -46,7 +49,6 @@ class ImpulseScreenlet ( screenlets.Screenlet) :
 		self.theme_name = "default"
 
 		self.timer = gobject.timeout_add( 33, self.update )
-
 
 	def update (self):
 
@@ -58,13 +60,20 @@ class ImpulseScreenlet ( screenlets.Screenlet) :
 
 	def on_load_theme (self):
 		"""Called when the theme is reloaded (after loading, before redraw)."""
-		self.theme_module = __import__( self.theme_name )
-		self.theme_module.load_theme( self )
+
+		if not self.theme_module or self.theme_name != self.theme_module.__name__:
+
+			for o in list( self.__options_groups__[ "Impulse" ][ 'options' ] ):
+				self.__options__.remove( o )
+				self.__options_groups__[ "Impulse" ][ 'options' ].remove( o )
+
+			self.theme_module = __import__( self.theme_name )
+			self.theme_module.load_theme( self )
 
 	def resize ( self, w, h ):
 		self.width = w
 		self.height = h
-		self.window.resize( w * self.scale, h * self.scale )
+		self.window.resize( int( w * self.scale ), int( h * self.scale ) )
 
 	def on_draw ( self, cr ):
 		"""In here we draw"""
@@ -78,13 +87,18 @@ class ImpulseScreenlet ( screenlets.Screenlet) :
 		if hasattr( self.theme_module, "fft" ) and self.theme_module.fft:
 			fft = True
 
-		audio_sample_array = cimpulse.getSnapshot( fft )
+		audio_sample_array = impulse.getSnapshot( fft )
 
-		self.theme_module.on_draw( audio_sample_array, cr )
-
+		self.theme_module.on_draw( audio_sample_array, cr, self )
 
 	def on_draw_shape ( self, ctx ):
 		self.on_draw(ctx)
+
+	def on_after_set_atribute(self,name, value):
+		"""Called after setting screenlet atributes"""
+		if self.theme_module and hasattr( self.theme_module, name ):
+			self.theme_module.on_after_set_attribute( self.theme_module, name, value, self )
+
 
 # If the program is run directly or passed as an argument to the python
 # interpreter then create a Screenlet instance and show it
