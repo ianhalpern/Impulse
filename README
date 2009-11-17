@@ -1,4 +1,5 @@
-Impulse is a bit of eye-candy for your desktop. It is a widget that displays a graphical spectrum analyzer on your gnome desktop. It is written in python and uses GTK and cairo graphics to generate the animation. The cimpulse module creates a pulse audio connection context that reads the output stream from pulseaudio in a thread natively which can then be read from python. You can specify cimpulse to either output the raw stream or output the fft of the raw stream.
+Impulse is a bit of eye-candy for your desktop. It is a widget that displays a graphical spectrum analyzer on your gnome desktop. It is written in c and python and uses GTK and cairo graphics to generate the animation. the impulse library creates a pulse audio connection context that reads the output stream from pulseaudio in a thread natively which can then be read from python. You can specify impulse to either output the raw stream or output the fft of the raw stream.
+
 
 
 Requires:

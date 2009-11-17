@@ -1,7 +1,9 @@
 LIBIMPULSE=-limpulse -Wl,-rpath,.
 MACHINE=`uname -m`
-BUILD_DIR=builds/$(MACHINE)
+MAIN_BUILD_DIR=build
+BUILD_DIR=$(MAIN_BUILD_DIR)/$(MACHINE)/$(VERNUM)
 COPY_DEFAULTS=COPYING README
+VERNUM=`vernum`
 
 impulse: libimpulse python-impulse
 	mkdir -p $(BUILD_DIR)/impulse
@@ -46,4 +48,4 @@ python-impulse: libimpulse
 	rm $(BUILD_DIR)/python-impulse/impulsemodule.o
 
 clean:
-	rm -rf builds
+	rm -rf $(MAIN_BUILD_DIR)
